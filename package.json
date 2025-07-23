@@ -1,0 +1,47 @@
+{
+  "name": "@kaynooo/orm",
+  "type": "module",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kayno0o/ts-orm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kayno0o/ts-orm/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "./dist",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsup",
+    "lint:fix": "eslint . --fix",
+    "example": "bun ./examples/index.ts"
+  },
+  "peerDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@kaynooo/utils": "^1.2.22",
+    "prismarine-nbt": "^2.7.0",
+    "rcon-client": "^4.2.5",
+    "tsup": "^8.5.0"
+  },
+  "devDependencies": {
+    "@kaynooo/eslint": "^1.1.12",
+    "@types/bun": "^1.2.17",
+    "eslint": "^9.30.0",
+    "eslint-plugin-github": "^6.0.0",
+    "lint-staged": "^16.1.2"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
+  }
+}

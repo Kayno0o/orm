@@ -1,0 +1,14 @@
+{
+  "name": "app",
+  "type": "module",
+  "module": "index.ts",
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@kaynooo/ts-module": "link:@kaynooo/ts-module"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
