@@ -209,12 +209,7 @@ export class AbstractRepository<T extends Identifiable> {
 
   /** remove extra fields that are not in DB */
   trimEntityFields(entity: Partial<EntityInput<T>>): Partial<EntityInput<T>> {
-    const result = JSON.parse(JSON.stringify(entity))
     const columnNames = Object.keys(this.fields)
-    for (const key in result) {
-      if (!columnNames.includes(key))
-        delete result[key]
-    }
-    return result
+    return Object.fromEntries(Object.entries(entity).filter(([key]) => columnNames.includes(key))) as Partial<EntityInput<T>>
   }
 }
