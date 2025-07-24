@@ -27,6 +27,12 @@ export class AbstractRepository<T extends Identifiable> {
     return this.find(id)!
   }
 
+  persist(entity: EntityInput<T>): T {
+    if ((entity as any).id)
+      return this.update((entity as any).id, entity)
+    return this.create(entity)
+  }
+
   delete(id: number): void {
     runQuery(`DELETE FROM ${this.tableName} WHERE id = ?`, [id])
   }
