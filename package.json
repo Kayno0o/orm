@@ -4,10 +4,10 @@
   "version": "1.0.1",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Kayno0o/ts-orm.git"
+    "url": "git+https://github.com/Kayno0o/orm.git"
   },
   "bugs": {
-    "url": "https://github.com/Kayno0o/ts-orm/issues"
+    "url": "https://github.com/Kayno0o/orm/issues"
   },
   "exports": {
     ".": {
