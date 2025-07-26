@@ -19,9 +19,7 @@ function dbLog(type: string, query: string, params: SQLQueryBindings[]) {
 
 function error(type: string, error: Error, query: string, params: SQLQueryBindings[]) {
   let paramIndex = 0
-  const queryWithParams = query.replace(/\?/g, () => {
-    return String(params[paramIndex++] ?? '?')
-  })
+  const queryWithParams = query.replaceAll('?', () => String(params[paramIndex++] ?? '?'))
 
   log(
     'error',
