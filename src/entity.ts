@@ -23,14 +23,8 @@ interface DBTypeMap {
 export function Column<
   T extends keyof DBTypeMap,
   Options extends Omit<DBField, 'type'>,
->(
-  type: T,
-  options?: Options,
-) {
-  return function <Target extends AbstractEntity, Key extends keyof Target>(
-    target: Target,
-    key: Key & (Target[Key] extends (Options['nullable'] extends true ? DBTypeMap[T] | null : DBTypeMap[T]) ? Key : never),
-  ) {
+>(type: T, options?: Options) {
+  return function <Target extends AbstractEntity, Key extends keyof Target>(target: Target, key: Key & (Target[Key] extends (Options['nullable'] extends true ? DBTypeMap[T] | null : DBTypeMap[T]) ? Key : never)) {
     const name = target.constructor.name
     __definition[name] ??= { fields: {}, tableName: '', uniques: [] }
     __definition[name].fields ??= {}

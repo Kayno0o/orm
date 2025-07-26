@@ -1,11 +1,10 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "jsx": "react-jsx",
-    "lib": ["ESNext"],
+    "lib": ["ES2021", "ES2022", "ES2023", "ES2024"],
     "moduleDetection": "force",
     "experimentalDecorators": true,
-    "module": "Preserve",
+    "module": "ESNext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "allowJs": true,
