@@ -1,7 +1,7 @@
 {
   "name": "@kaynooo/orm",
   "type": "module",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Kayno0o/orm.git"
