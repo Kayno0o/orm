@@ -1,6 +1,7 @@
 export * from './entity'
 export * from './global'
 export * from './init'
+export * from './migration'
 export * from './query'
 export * from './queryBuilder'
 export * from './repository'
