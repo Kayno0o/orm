@@ -16,7 +16,7 @@ export class DatabaseMigrator {
   private dryRun: boolean
 
   constructor() {
-    this.confirmMigrations = process.env.CONFIRM_DB_MIGRATIONS === 'true'
+    this.confirmMigrations = import.meta.env.CONFIRM_DB_MIGRATIONS === 'true'
     this.dryRun = !this.confirmMigrations
   }
 

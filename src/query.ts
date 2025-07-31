@@ -2,7 +2,7 @@ import type { SQLQueryBindings } from '.'
 import { colors, declareLogger } from '@kaynooo/utils'
 import { getDB } from '.'
 
-const log = declareLogger({ logLevel: Number(import.meta?.env?.LOG_LEVEL ?? process.env?.LOG_LEVEL ?? 3) })
+const log = declareLogger({ logLevel: Number(import.meta?.env?.LOG_LEVEL ?? import.meta.env?.LOG_LEVEL ?? 3) })
 
 function dbLog(type: string, query: string, params: SQLQueryBindings[]) {
   if (import.meta.env.DEBUG_DB === 'true') {
