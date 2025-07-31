@@ -13,14 +13,47 @@ export interface SQLOperation {
 
 export class DatabaseMigrator {
   private confirmMigrations: boolean
+  private dryRun: boolean
 
   constructor() {
     this.confirmMigrations = process.env.CONFIRM_DB_MIGRATIONS === 'true'
+    this.dryRun = !this.confirmMigrations
+  }
 
-    if (!this.confirmMigrations) {
-      console.error(colors.red('❌ Database migrations are disabled'))
-      console.error(colors.yellow('Set CONFIRM_DB_MIGRATIONS=true or pass { confirmMigrations: true } to enable migrations'))
-      process.exit(1)
+  private logDryRunOperation(operation: SQLOperation, tableName: string): void {
+    if (!this.dryRun)
+      return
+
+    console.log(colors.yellow('🔍 Database migrations in DRY RUN mode - showing SQL without executing'))
+    console.log(colors.gray('Set'), colors.bold.red('CONFIRM_DB_MIGRATIONS=true'), colors.gray('to enable actual migrations'))
+
+    console.log(`\n${operation.critical ? colors.red('🚨 CRITICAL') : colors.blue('📝')} [DRY RUN] Database Operation for table ${colors.cyan(`'${tableName}'`)}:`)
+    console.log(`${colors.gray('Description:')} ${operation.description}`)
+    console.log(`${colors.gray('SQL:')} ${colors.yellow.rgb(0, 0, 0, 'bg')(operation.query)}`)
+    if (operation.params?.length) {
+      console.log(`${colors.gray('Parameters:')} ${colors.magenta(operation.params.join(', '))}`)
+    }
+  }
+
+  private logDryRunBatch(operations: SQLOperation[], tableName: string): void {
+    if (!this.dryRun || operations.length === 0)
+      return
+
+    console.log(colors.yellow('🔍 Database migrations in DRY RUN mode - showing SQL without executing'))
+    console.log(colors.gray('Set'), colors.bold.red('CONFIRM_DB_MIGRATIONS=true'), colors.gray('to enable actual migrations'))
+
+    console.log(`\n${colors.blue('📋')} [DRY RUN] Batch Database Operations for table ${colors.cyan(`'${tableName}'`)} ${colors.dim(`(${operations.length} operations)`)}:`)
+    console.log()
+
+    for (const [i, op] of operations.entries()) {
+      const operationColor = op.critical ? colors.red : colors.white
+      const numberColor = op.critical ? colors.red : colors.blue
+
+      console.log(`${numberColor(`${i + 1}.`)} ${op.critical ? colors.red('🚨 CRITICAL: ') : ''}${operationColor(op.description)}`)
+      console.log(`   ${colors.gray('SQL:')} ${colors.yellow.rgb(0, 0, 0, 'bg')(op.query)}`)
+      if (op.params?.length) {
+        console.log(`   ${colors.gray('Parameters:')} ${colors.magenta(op.params.join(', '))}`)
+      }
     }
   }
 
@@ -31,7 +64,7 @@ export class DatabaseMigrator {
 
     console.log(`\n${operation.critical ? colors.red('🚨 CRITICAL') : colors.blue('📝')} Database Operation for table ${colors.cyan(`'${tableName}'`)}:`)
     console.log(`${colors.gray('Description:')} ${operation.description}`)
-    console.log(`${colors.gray('SQL:')} ${colors.yellow(operation.query)}`)
+    console.log(`${colors.gray('SQL:')} ${colors.yellow.rgb(0, 0, 0, 'bg')(operation.query)}`)
     if (operation.params?.length) {
       console.log(`${colors.gray('Parameters:')} ${colors.magenta(operation.params.join(', '))}`)
     }
@@ -53,13 +86,13 @@ export class DatabaseMigrator {
       const numberColor = op.critical ? colors.red : colors.blue
 
       console.log(`${numberColor(`${i + 1}.`)} ${op.critical ? colors.red('🚨 CRITICAL: ') : ''}${operationColor(op.description)}`)
-      console.log(`   ${colors.gray('SQL:')} ${colors.yellow(op.query)}`)
+      console.log(`   ${colors.gray('SQL:')} ${colors.yellow.rgb(0, 0, 0, 'bg')(op.query)}`)
       if (op.params?.length) {
         console.log(`   ${colors.gray('Parameters:')} ${colors.magenta(op.params.join(', '))}`)
       }
-      console.log()
     }
 
+    console.log()
     console.log(colors.bold('Options:'))
     console.log(`${colors.green('y')} - Execute all operations`)
     console.log(`${colors.yellow('s')} - Execute operations one by one`)
@@ -145,7 +178,6 @@ export class DatabaseMigrator {
       else {
         console.log(colors.red(`Invalid selection for '${newColumn}' - skipping`))
       }
-      console.log()
     }
 
     if (Object.keys(mapping).length === 0) {
@@ -175,6 +207,12 @@ export class DatabaseMigrator {
       query,
       params,
       critical,
+    }
+
+    // Show SQL in dry run mode
+    if (this.dryRun) {
+      this.logDryRunOperation(operation, tableName)
+      return true // Pretend success in dry run
     }
 
     const confirmed = await this.confirmOperation(operation, tableName)
@@ -246,11 +284,22 @@ export class DatabaseMigrator {
       }
 
       if (requiresRecreation) {
+        if (this.dryRun) {
+          await this.showRecreationPlan(tableName, fields, uniques, columns)
+          process.exit(1)
+        }
+
         await this.recreateTable(tableName, fields, uniques, columns)
         return
       }
 
       if (operations.length) {
+        if (this.dryRun) {
+          this.logDryRunBatch(operations, tableName)
+          console.log(colors.gray(`[DRY RUN] Would update table '${tableName}' with ${operations.length} operations`))
+          return
+        }
+
         const confirmed = await this.confirmBatchOperations(operations, tableName)
         if (confirmed) {
           try {
@@ -269,7 +318,110 @@ export class DatabaseMigrator {
     }
 
     // Table doesn't exist - create it
+    if (this.dryRun) {
+      await this.showCreateTablePlan(tableName, fields, uniques)
+      process.exit(1)
+    }
+
     await this.createTable(tableName, fields, uniques)
+  }
+
+  private async showRecreationPlan(tableName: string, fields: Record<string, DBField>, uniques: string[][], existingColumns: any[]): Promise<void> {
+    const tmpTableName = `tmp_${tableName}_${randomString(3, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')}`
+
+    // Build new table creation SQL
+    const lines: string[] = ['id INTEGER PRIMARY KEY AUTOINCREMENT']
+    for (const [fieldName, field] of Object.entries<DBField>(fields)) {
+      lines.push(describeColumn(fieldName, field))
+    }
+
+    // Handle foreign key references
+    for (const [fieldName, field] of Object.entries<DBField>(fields)) {
+      if (field.reference) {
+        const ref = typeof field.reference === 'string'
+          ? { key: 'id', table: field.reference }
+          : field.reference
+        lines.push(`FOREIGN KEY (${fieldName}) REFERENCES ${ref.table}(${ref.key})`)
+      }
+    }
+
+    // Handle unique constraints
+    if (uniques) {
+      for (const uniqueGroup of uniques) {
+        const uniqueFields = Array.isArray(uniqueGroup) ? uniqueGroup.join(', ') : uniqueGroup
+        lines.push(`UNIQUE(${uniqueFields})`)
+      }
+    }
+
+    const commonColumns = existingColumns
+      .map(col => col.name)
+      .filter(name => name !== 'id' && Object.keys(fields).includes(name))
+
+    let copyQuery = '-- No compatible columns to copy'
+    if (commonColumns.length > 0) {
+      copyQuery = `INSERT INTO ${tmpTableName} (${commonColumns.join(', ')}) SELECT ${commonColumns.join(', ')} FROM ${tableName}`
+    }
+
+    const recreationOperations: SQLOperation[] = [
+      {
+        description: `Create temporary table '${tmpTableName}' with new schema`,
+        query: `CREATE TABLE ${tmpTableName} (${lines.join(', ')})`,
+        params: [],
+      },
+      {
+        description: commonColumns.length > 0
+          ? `Copy compatible columns: ${commonColumns.join(', ')}`
+          : 'No compatible columns found - no data would be copied',
+        query: copyQuery,
+        params: [],
+      },
+      {
+        description: `Drop old table '${tableName}'`,
+        query: `DROP TABLE ${tableName}`,
+        params: [],
+        critical: true,
+      },
+      {
+        description: `Rename temporary table to '${tableName}'`,
+        query: `ALTER TABLE ${tmpTableName} RENAME TO ${tableName}`,
+        params: [],
+      },
+    ]
+
+    this.logDryRunBatch(recreationOperations, tableName)
+    console.log(colors.gray(`[DRY RUN] Would recreate table '${tableName}' with schema changes`))
+  }
+
+  private async showCreateTablePlan(tableName: string, fields: Record<string, DBField>, uniques: string[][]): Promise<void> {
+    const lines: string[] = ['id INTEGER PRIMARY KEY AUTOINCREMENT']
+    for (const [fieldName, field] of Object.entries<DBField>(fields)) {
+      lines.push(describeColumn(fieldName, field))
+    }
+
+    for (const [fieldName, field] of Object.entries<DBField>(fields)) {
+      if (field.reference) {
+        const ref = typeof field.reference === 'string'
+          ? { key: 'id', table: field.reference }
+          : field.reference
+        lines.push(`FOREIGN KEY (${fieldName}) REFERENCES ${ref.table}(${ref.key})`)
+      }
+    }
+
+    if (uniques) {
+      for (const uniqueGroup of uniques) {
+        const uniqueFields = Array.isArray(uniqueGroup) ? uniqueGroup.join(', ') : uniqueGroup
+        lines.push(`UNIQUE(${uniqueFields})`)
+      }
+    }
+
+    const operation: SQLOperation = {
+      description: `Create new table '${tableName}' with full schema`,
+      query: `CREATE TABLE IF NOT EXISTS ${tableName} (${lines.join(', ')})`,
+      params: [],
+    }
+
+    this.logDryRunOperation(operation, tableName)
+    console.log(colors.gray(`[DRY RUN] Would create new table '${tableName}'`))
   }
 
   private async recreateTable(tableName: string, fields: Record<string, DBField>, uniques: string[][], existingColumns: any[]): Promise<void> {

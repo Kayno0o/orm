@@ -7,7 +7,7 @@ import { User } from './entities/user'
 import { UserRepository } from './repositories/userRepository'
 
 // enable migration confirmations via environment variable
-process.env.CONFIRM_DB_MIGRATIONS = 'true'
+// process.env.CONFIRM_DB_MIGRATIONS = 'true'
 
 await initDB(new Database(path.resolve(import.meta.dir, 'data.sqlite')), [
   new UserRepository(),
