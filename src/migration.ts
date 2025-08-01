@@ -2,7 +2,7 @@
 
 import type { DBField } from '.'
 import { colors, randomString } from '@kaynooo/utils'
-import { describeColumn, getTableColumns, getUniqueFields, runQuery } from '.'
+import { describeColumn, getTableColumns, getUniqueFields, queryOne, runQuery } from '.'
 
 export interface SQLOperation {
   description: string
@@ -239,19 +239,42 @@ export class DatabaseMigrator {
       const operations: SQLOperation[] = []
       let requiresRecreation = false
 
-      // Check for missing columns
+      // check for missing columns
       const missingColumns = Object.keys(fields).filter(key => !columns.find(column => column.name === key))
       for (const missingColumn of missingColumns) {
-        const columnDefinition = describeColumn(String(missingColumn), fields[missingColumn]!)
+        const field = fields[missingColumn]!
+        const columnDefinition = describeColumn(String(missingColumn), field)
+
         if (columnDefinition.includes('UNIQUE')) {
           requiresRecreation = true
         }
         else {
-          operations.push({
-            description: `Add column '${missingColumn}' with definition: ${columnDefinition}`,
-            query: `ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`,
-            params: [],
-          })
+          // check if table has existing data and column is NOT NULL
+          const hasData = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM ${tableName}`)?.count ?? 0
+
+          if (hasData > 0 && field.nullable === false && field.default === undefined) {
+            // prompt for default value for existing rows
+            const defaultValue = await this.promptDefaultValue(missingColumn, field)
+
+            // create column definition with default value
+            const columnDefWithDefault = describeColumn(String(missingColumn), {
+              ...field,
+              default: defaultValue,
+            })
+
+            operations.push({
+              description: `Add NOT NULL column '${missingColumn}' with default value '${defaultValue}' for existing rows`,
+              query: `ALTER TABLE ${tableName} ADD COLUMN ${columnDefWithDefault}`,
+              params: [],
+            })
+          }
+          else {
+            operations.push({
+              description: `Add column '${missingColumn}' with definition: ${columnDefinition}`,
+              query: `ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`,
+              params: [],
+            })
+          }
         }
       }
 
