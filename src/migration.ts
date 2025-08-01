@@ -16,7 +16,7 @@ export class DatabaseMigrator {
   private dryRun: boolean
 
   constructor() {
-    this.confirmMigrations = import.meta.env.CONFIRM_DB_MIGRATIONS === 'true'
+    this.confirmMigrations = import.meta.env.PROMPT_DB_MIGRATIONS ? import.meta.env.PROMPT_DB_MIGRATIONS === 'true' : import.meta.env.NODE_ENV !== 'production'
     this.dryRun = !this.confirmMigrations
   }
 
@@ -25,7 +25,7 @@ export class DatabaseMigrator {
       return
 
     console.log(colors.yellow('🔍 Database migrations in DRY RUN mode - showing SQL without executing'))
-    console.log(colors.gray('Set'), colors.bold.red('CONFIRM_DB_MIGRATIONS=true'), colors.gray('to enable actual migrations'))
+    console.log(colors.gray('Set'), colors.bold.red('PROMPT_DB_MIGRATIONS=true'), colors.gray('to enable actual migrations'))
 
     console.log(`\n${operation.critical ? colors.red('🚨 CRITICAL') : colors.blue('📝')} [DRY RUN] Database Operation for table ${colors.cyan(`'${tableName}'`)}:`)
     console.log(`${colors.gray('Description:')} ${operation.description}`)
@@ -40,7 +40,7 @@ export class DatabaseMigrator {
       return
 
     console.log(colors.yellow('🔍 Database migrations in DRY RUN mode - showing SQL without executing'))
-    console.log(colors.gray('Set'), colors.bold.red('CONFIRM_DB_MIGRATIONS=true'), colors.gray('to enable actual migrations'))
+    console.log(colors.gray('Set'), colors.bold.red('PROMPT_DB_MIGRATIONS=true'), colors.gray('to enable actual migrations'))
 
     console.log(`\n${colors.blue('📋')} [DRY RUN] Batch Database Operations for table ${colors.cyan(`'${tableName}'`)} ${colors.dim(`(${operations.length} operations)`)}:`)
     console.log()
